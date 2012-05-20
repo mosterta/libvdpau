@@ -454,12 +454,14 @@
  *
  * \subsection bitstream_vp8 VP8
  *
- * Include all frames. The key frame start code 0x9D012A found in the frame
- * header must be included for all frames.
+ * Include exactly one VP8 frame. The bitstream passed to VDPAU should contain
+ * a complete VP8 frame, starting with the uncompressed frame header. No start
+ * code needs to be added.
  *
  * Note that if desired:
  *
- * - The start code may be included in a separate bitstream buffer array
+ * - The start code 0x9D012A, which is usually only part of the key frame
+ *   uncompressed header, may be included in a separate bitstream buffer array
  *   entry to the actual frame data extracted from the bitstream.
  *
  * \section video_mixer_usage Video Mixer Usage
