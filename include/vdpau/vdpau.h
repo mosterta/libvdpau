@@ -2437,6 +2437,14 @@ typedef uint32_t VdpDecoderProfile;
 #define VDP_DECODER_PROFILE_DIVX5_HOME_THEATER          (VdpDecoderProfile)20
 /** \hideinitializer */
 #define VDP_DECODER_PROFILE_DIVX5_HD_1080P              (VdpDecoderProfile)21
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_QMOBILE               (VdpDecoderProfile)22
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_MOBILE                (VdpDecoderProfile)23
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_HOME_THEATER          (VdpDecoderProfile)24
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_HD_1080P              (VdpDecoderProfile)25
 
 /** \hideinitializer */
 #define VDP_DECODER_LEVEL_MPEG1_NA 0
@@ -3020,6 +3028,121 @@ typedef VdpStatus VdpDecoderRender(
     VdpPictureInfo const *     picture_info,
     uint32_t                   bitstream_buffer_count,
     VdpBitstreamBuffer const * bitstream_buffers
+);
+typedef VdpStatus VdpDecoderRenderStream(
+    VdpDecoder                 decoder,
+    VdpVideoSurface            target,
+    VdpPictureInfo const *     picture_info,
+    uint32_t                   bitstream_buffer_count,
+    VdpBitstreamBuffer const * bitstream_buffers,
+    uint32_t *                 bitstream_pos_returned
+);
+
+typedef enum
+{
+    VDP_MPEG4_VOL_HEADER       = 0x00010001,
+    VDP_MPEG4_VOP_HEADER       = 0x00010002,
+    VDP_MPEG4_USR_HEADER       = 0x00010003
+} VdpDecoderControlDataId;
+
+#define VDP_MPEG4_STRUCT_VERSION    1
+
+typedef struct
+{
+    uint32_t                   struct_version; //must be VDP_MPEG4_STRUCT_VERSION
+    uint8_t                    random_accessible_vol;
+    uint8_t                    video_object_type_indication;
+    uint8_t                    is_object_layer_identifier;
+    uint8_t                    video_object_layer_verid;
+    uint8_t                    video_object_layer_priority;
+    uint8_t                    aspect_ratio_info;
+    uint8_t                    par_width;
+    uint8_t                    par_height;
+    uint8_t                    vol_control_parameters;
+    uint8_t                    chroma_format;
+    uint8_t                    low_delay;
+    uint8_t                    vbv_parameters;
+    uint16_t                   first_half_bit_rate;
+    uint16_t                   latter_half_bit_rate;
+    uint16_t                   first_half_vbv_buffer_size;
+    uint16_t                   latter_half_vbv_buffer_size;
+    uint16_t                   first_half_vbv_occupancy;
+    uint16_t                   latter_half_vbv_occupancy;
+    uint8_t                    video_object_layer_shape;
+    uint8_t                    video_object_layer_shape_extension;
+    uint16_t                   vop_time_increment_resolution;
+    uint8_t                    fixed_vop_rate;
+    uint16_t                   fixed_vop_time_increment;
+    uint16_t                   video_object_layer_width;
+    uint16_t                   video_object_layer_height;
+    uint8_t                    interlaced;
+    uint8_t                    obmc_disable;
+    uint8_t                    sprite_enable;
+    uint16_t                   sprite_width;
+    uint16_t                   sprite_height;
+    uint16_t                   sprite_left_coordinate;
+    uint16_t                   sprite_top_coordinate;
+    uint8_t                    no_of_sprite_warping_points;
+    uint8_t                    sprite_warping_accuracy;
+    uint8_t                    sprite_brightness_change;
+    uint8_t                    low_latency_sprite_enable;
+    uint8_t                    sadct_disable;
+    uint8_t                    not_8_bit;
+    uint8_t                    quant_precision;
+    uint8_t                    bits_per_pixel;
+    uint8_t                    no_gray_quant_update;
+    uint8_t                    composition_method;
+    uint8_t                    linear_composition;
+    uint8_t                    quant_type;
+    uint8_t                    load_intra_quant_mat;
+    uint8_t                    intra_quant_mat[64];
+    uint8_t                    load_nonintra_quant_mat;
+    uint8_t                    nonintra_quant_mat[64];
+    //insert grayscale matrices here!!!!
+    uint8_t                    quarter_sample;
+    uint8_t                    complexity_estimation_disable;
+    uint8_t                    resync_marker_disable;
+    uint8_t                    data_partitioned;
+    uint8_t                    reversible_vlc;
+    uint8_t                    newpred_enable;
+    uint8_t                    requested_upstream_message_type;
+    uint8_t                    newpred_segment_type;
+    uint8_t                    reduced_resolution_vop_enable;
+    uint8_t                    scalability;
+    uint8_t                    hierarchy_type;
+    uint8_t                    ref_layer_id;
+    uint8_t                    ref_layer_sampling_direc;
+    uint8_t                    hor_sampling_factor_n;
+    uint8_t                    hor_sampling_factor_m;
+    uint8_t                    vert_sampling_factor_n;
+    uint8_t                    vert_sampling_factor_m;
+    uint8_t                    enhancement_type;
+    uint8_t                    use_ref_shape;
+    uint8_t                    use_ref_texture;
+    uint8_t                    shape_hor_sampling_factor_n;
+    uint8_t                    shape_hor_sampling_factor_m;
+    uint8_t                    shape_vert_sampling_factor_n;
+    uint8_t                    shape_vert_sampling_factor_m;
+} VdpDecoderMpeg4VolHeader;
+typedef struct 
+{
+} VdpDecoderMpeg4VopHeader;
+
+typedef struct 
+{
+} VdpDecoderMpeg4UsrHeader;
+
+typedef union
+{
+  VdpDecoderMpeg4VolHeader      mpeg4VolHdr;
+  VdpDecoderMpeg4VopHeader      mpeg4VopHdr;
+  VdpDecoderMpeg4UsrHeader      mpeg4UsrHdr;
+} VdpDecoderControlData;
+
+typedef VdpStatus VdpDecoderSetControlData(
+    VdpDecoder                     decoder,
+    VdpDecoderControlDataId        id,
+    VdpDecoderControlData          *data
 );
 
 /*@}*/
@@ -4284,6 +4407,9 @@ typedef uint32_t VdpFuncId;
 #define VDP_FUNC_ID_PRESENTATION_QUEUE_QUERY_SURFACE_STATUS                     (VdpFuncId)65
 /** \hideinitializer */
 #define VDP_FUNC_ID_PREEMPTION_CALLBACK_REGISTER                                (VdpFuncId)66
+/** \hideinitializer */
+#define VDP_FUNC_ID_DECODER_SET_VIDEO_CONTROL_DATA                              (VdpFuncId)67
+#define VDP_FUNC_ID_DECODER_RENDERSTREAM                                        (VdpFuncId)68
 
 #define VDP_FUNC_ID_BASE_WINSYS 0x1000
 

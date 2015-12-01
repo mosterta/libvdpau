@@ -124,10 +124,12 @@ static VdpStatus _vdp_open_driver(
                  VDPAU_MODULEDIR "/", vdpau_driver, ".1") >=
             sizeof(vdpau_driver_lib)) {
         fprintf(stderr, "Failed to construct driver path: path too long\n");
+#if DRI2
         if (vdpau_driver_dri2) {
             XFree(vdpau_driver_dri2);
             vdpau_driver_dri2 = NULL;
         }
+#endif
         _VDP_ERROR_BREAKPOINT();
         return VDP_STATUS_NO_IMPLEMENTATION;
     }
@@ -141,10 +143,12 @@ static VdpStatus _vdp_open_driver(
         _vdp_driver_dll = dlopen(vdpau_driver_lib, RTLD_NOW | RTLD_GLOBAL);
     }
 
+#if DRI2
     if (vdpau_driver_dri2) {
         XFree(vdpau_driver_dri2);
         vdpau_driver_dri2 = NULL;
     }
+#endif
 
     if (!_vdp_driver_dll) {
         fprintf(stderr, "Failed to open VDPAU backend %s\n", dlerror());
