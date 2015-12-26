@@ -12,7 +12,6 @@
 static int countOpenFDs(void)
 {
     DIR *dir = opendir("/proc/self/fd");
-    struct dirent *ent;
     int count = 0;
 
     if (!dir) {
@@ -21,7 +20,7 @@ static int countOpenFDs(void)
         return 0;
     }
 
-    while (ent = readdir(dir)) {
+    while (readdir(dir) != NULL) {
         count++;
     }
 
@@ -29,7 +28,7 @@ static int countOpenFDs(void)
     return count;
 }
 
-int main()
+int main(void)
 {
     // Work around a bug in libXext: dlclosing it after it has registered the
     // Generic Event Extension causes an identical bug to the one this program

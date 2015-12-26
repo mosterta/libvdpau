@@ -6,7 +6,7 @@
 /*
  * This copyright notice applies to this header file:
  *
- * Copyright (c) 2008-2010 NVIDIA Corporation
+ * Copyright (c) 2008-2015 NVIDIA Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -432,6 +432,26 @@
  * Include all slices beginning with start codes 0x000001B6. The slice start
  * code must be included for all slices.
  *
+ * \subsection bitstream_hevc H.265/HEVC - High Efficiency Video Codec
+ *
+ * Include all video coding layer (VCL) NAL units, with nal_unit_type values
+ * of 0 (TRAIL_N) through 31 (RSV_VCL31) inclusive. In addition to parsing
+ * and providing NAL units, an H.265/HEVC decoder application using VDPAU
+ * for decoding must parse certain values of the first slice segment header
+ * in a VCL NAL unit and provide it through VdpPictureInfoHEVC. Please see
+ * the documentation for VdpPictureInfoHEVC below for further details.
+ *
+ * The complete slice start code (including the 0x000001 prefix) must be
+ * included for all slices, even when the prefix is not included in the
+ * bitstream.
+ *
+ * Note that if desired:
+ *
+ * - The slice start code prefix may be included in a separate bitstream
+ *   buffer array entry to the actual slice data extracted from the bitstream.
+ * - Multiple bitstream buffer array entries (e.g. one per slice) may point at
+ *   the same physical data storage for the slice start code prefix.
+ *
  * \section video_mixer_usage Video Mixer Usage
  *
  * \subsection video_surface_content VdpVideoSurface Content
@@ -707,10 +727,25 @@
  *
  * A few structures are considered plausible candidates for future extension.
  * Such structures include a version number as the first field, indicating the
- * exact layout of the client-provided data. Such structures may only be
- * modified by adding new fields to the end of the structure, so that the
- * original structure definition is completely compatible with a leading
- * subset of fields of the extended structure.
+ * exact layout of the client-provided data. When changing such structures, the
+ * old structure must be preserved and a new structure created. This allows
+ * applications built against the old version of the structure to continue to
+ * interoperate. For example, to extend the VdpProcamp structure, define a new
+ * VdpProcamp1 and update VdpGenerateCSCMatrix to take the new structure as an
+ * argument. Document in a comment that the caller must fill the struct_version
+ * field with the value 1. VDPAU implementations should use the struct_version
+ * field to determine which version of the structure the application was built
+ * against.  Note that you cannot simply increment the value of
+ * VDP_PROCAMP_VERSION because applications recompiled against a newer version
+ * of vdpau.h but that have not been updated to use the new structure must still
+ * report that they're using version 0.
+ *
+ * Note that the layouts of VdpPictureInfo structures are defined by their
+ * corresponding VdpDecoderProfile numbers, so no struct_version field is
+ * needed for them. This layout includes the size of the structure, so new
+ * profiles that extend existing functionality may incorporate the old
+ * VdpPictureInfo as a substructure, but may not modify existing VdpPictureInfo
+ * structures.
  *
  * \subsection extend_functions Functions
  *
@@ -804,11 +839,11 @@ typedef int VdpBool;
 typedef uint32_t VdpChromaType;
 
 /** \hideinitializer \brief 4:2:0 chroma format. */
-#define VDP_CHROMA_TYPE_420 (VdpChromaType)0
+#define VDP_CHROMA_TYPE_420 ((VdpChromaType)0)
 /** \hideinitializer \brief 4:2:2 chroma format. */
-#define VDP_CHROMA_TYPE_422 (VdpChromaType)1
+#define VDP_CHROMA_TYPE_422 ((VdpChromaType)1)
 /** \hideinitializer \brief 4:4:4 chroma format. */
-#define VDP_CHROMA_TYPE_444 (VdpChromaType)2
+#define VDP_CHROMA_TYPE_444 ((VdpChromaType)2)
 
 /**
  * \brief The set of all known YCbCr surface formats.
@@ -828,7 +863,7 @@ typedef uint32_t VdpYCbCrFormat;
  * components, in the order U, V, U, V. Applications should
  * access this data via a uint8_t pointer.
  */
-#define VDP_YCBCR_FORMAT_NV12     (VdpYCbCrFormat)0
+#define VDP_YCBCR_FORMAT_NV12     ((VdpYCbCrFormat)0)
 /**
  * \hideinitializer
  * \brief The "YV12" YCbCr surface format.
@@ -840,7 +875,7 @@ typedef uint32_t VdpYCbCrFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_YCBCR_FORMAT_YV12     (VdpYCbCrFormat)1
+#define VDP_YCBCR_FORMAT_YV12     ((VdpYCbCrFormat)1)
 /**
  * \hideinitializer
  * \brief The "UYVY" YCbCr surface format.
@@ -854,7 +889,7 @@ typedef uint32_t VdpYCbCrFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_YCBCR_FORMAT_UYVY     (VdpYCbCrFormat)2
+#define VDP_YCBCR_FORMAT_UYVY     ((VdpYCbCrFormat)2)
 /**
  * \hideinitializer
  * \brief The "YUYV" YCbCr surface format.
@@ -868,7 +903,7 @@ typedef uint32_t VdpYCbCrFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_YCBCR_FORMAT_YUYV     (VdpYCbCrFormat)3
+#define VDP_YCBCR_FORMAT_YUYV     ((VdpYCbCrFormat)3)
 /**
  * \hideinitializer
  * \brief A packed YCbCr format.
@@ -881,7 +916,7 @@ typedef uint32_t VdpYCbCrFormat;
  *
  * Applications should access this data via a uint32_t pointer.
  */
-#define VDP_YCBCR_FORMAT_Y8U8V8A8 (VdpYCbCrFormat)4
+#define VDP_YCBCR_FORMAT_Y8U8V8A8 ((VdpYCbCrFormat)4)
 /**
  * \hideinitializer
  * \brief A packed YCbCr format.
@@ -894,7 +929,7 @@ typedef uint32_t VdpYCbCrFormat;
  *
  * Applications should access this data via a uint32_t pointer.
  */
-#define VDP_YCBCR_FORMAT_V8U8Y8A8 (VdpYCbCrFormat)5
+#define VDP_YCBCR_FORMAT_V8U8Y8A8 ((VdpYCbCrFormat)5)
 
 /**
  * \brief  The set of all known RGB surface formats.
@@ -913,7 +948,7 @@ typedef uint32_t VdpRGBAFormat;
  *
  * Applications should access this data via a uint32_t pointer.
  */
-#define VDP_RGBA_FORMAT_B8G8R8A8    (VdpRGBAFormat)0
+#define VDP_RGBA_FORMAT_B8G8R8A8    ((VdpRGBAFormat)0)
 /**
  * \hideinitializer
  * \brief A packed RGB format.
@@ -926,7 +961,7 @@ typedef uint32_t VdpRGBAFormat;
  *
  * Applications should access this data via a uint32_t pointer.
  */
-#define VDP_RGBA_FORMAT_R8G8B8A8    (VdpRGBAFormat)1
+#define VDP_RGBA_FORMAT_R8G8B8A8    ((VdpRGBAFormat)1)
 /**
  * \hideinitializer
  * \brief A packed RGB format.
@@ -939,7 +974,7 @@ typedef uint32_t VdpRGBAFormat;
  *
  * Applications should access this data via a uint32_t pointer.
  */
-#define VDP_RGBA_FORMAT_R10G10B10A2 (VdpRGBAFormat)2
+#define VDP_RGBA_FORMAT_R10G10B10A2 ((VdpRGBAFormat)2)
 /**
  * \hideinitializer
  * \brief A packed RGB format.
@@ -952,7 +987,7 @@ typedef uint32_t VdpRGBAFormat;
  *
  * Applications should access this data via a uint32_t pointer.
  */
-#define VDP_RGBA_FORMAT_B10G10R10A2 (VdpRGBAFormat)3
+#define VDP_RGBA_FORMAT_B10G10R10A2 ((VdpRGBAFormat)3)
 /**
  * \hideinitializer
  * \brief An alpha-only surface format.
@@ -963,7 +998,7 @@ typedef uint32_t VdpRGBAFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_RGBA_FORMAT_A8          (VdpRGBAFormat)4
+#define VDP_RGBA_FORMAT_A8          ((VdpRGBAFormat)4)
 
 /**
  * \brief  The set of all known indexed surface formats.
@@ -981,7 +1016,7 @@ typedef uint32_t VdpIndexedFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_INDEXED_FORMAT_A4I4 (VdpIndexedFormat)0
+#define VDP_INDEXED_FORMAT_A4I4 ((VdpIndexedFormat)0)
 /**
  * \hideinitializer
  * \brief A 4-bit indexed format, with alpha.
@@ -993,7 +1028,7 @@ typedef uint32_t VdpIndexedFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_INDEXED_FORMAT_I4A4 (VdpIndexedFormat)1
+#define VDP_INDEXED_FORMAT_I4A4 ((VdpIndexedFormat)1)
 /**
  * \hideinitializer
  * \brief A 8-bit indexed format, with alpha.
@@ -1005,7 +1040,7 @@ typedef uint32_t VdpIndexedFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_INDEXED_FORMAT_A8I8 (VdpIndexedFormat)2
+#define VDP_INDEXED_FORMAT_A8I8 ((VdpIndexedFormat)2)
 /**
  * \hideinitializer
  * \brief A 8-bit indexed format, with alpha.
@@ -1017,7 +1052,7 @@ typedef uint32_t VdpIndexedFormat;
  *
  * Applications should access this data via a uint8_t pointer.
  */
-#define VDP_INDEXED_FORMAT_I8A8 (VdpIndexedFormat)3
+#define VDP_INDEXED_FORMAT_I8A8 ((VdpIndexedFormat)3)
 
 /**
  * \brief A location within a surface.
@@ -1415,11 +1450,11 @@ typedef struct {
 typedef uint32_t VdpColorStandard;
 
 /** \hideinitializer \brief ITU-R BT.601 */
-#define VDP_COLOR_STANDARD_ITUR_BT_601 (VdpColorStandard)0
+#define VDP_COLOR_STANDARD_ITUR_BT_601 ((VdpColorStandard)0)
 /** \hideinitializer \brief ITU-R BT.709 */
-#define VDP_COLOR_STANDARD_ITUR_BT_709 (VdpColorStandard)1
+#define VDP_COLOR_STANDARD_ITUR_BT_709 ((VdpColorStandard)1)
 /** \hideinitializer \brief SMPTE-240M */
-#define VDP_COLOR_STANDARD_SMPTE_240M  (VdpColorStandard)2
+#define VDP_COLOR_STANDARD_SMPTE_240M  ((VdpColorStandard)2)
 
 /**
  * \brief Generate a color space conversion matrix
@@ -1669,7 +1704,7 @@ typedef VdpStatus VdpVideoSurfacePutBitsYCbCr(
  * - The Hardware that implements \ref VdpPresentationQueue
  *   "VdpPresentationQueue" functionality,
  *
- * VdpVideoSurfaces are directly displayable using a \ref
+ * VdpOutputSurfaces are directly displayable using a \ref
  * VdpPresentationQueue "VdpPresentationQueue" object.
  *
  * @{
@@ -1692,7 +1727,7 @@ typedef uint32_t VdpColorTableFormat;
  * as such by the application in order to avoid endianness
  * issues.
  */
-#define VDP_COLOR_TABLE_FORMAT_B8G8R8X8 (VdpColorTableFormat)0
+#define VDP_COLOR_TABLE_FORMAT_B8G8R8X8 ((VdpColorTableFormat)0)
 
 /**
  * \brief Query the implementation's VdpOutputSurface
@@ -2231,8 +2266,8 @@ typedef struct {
  *       missing components are treated as 1.0. For example, for
  *       an A8 VdpOutputSurface, alpha will come from the surface
  *       but red, green and blue will be treated as 1.0. If
- *       source_surface is NULL, all components will be treated
- *       as 1.0. Note that destination_surface and
+ *       source_surface is VDP_INVALID_HANDLE, all components will
+ *       be treated as 1.0. Note that destination_surface and
  *       source_surface must have been allocated via the same
  *       \ref VdpDevice "VdpDevice".
  * \param[in] source_rect The sub-rectangle of the source
@@ -2311,8 +2346,8 @@ typedef VdpStatus VdpOutputSurfaceRenderOutputSurface(
  *       missing components are treated as 1.0. For example, for
  *       an A8 VdpBitmapSurface, alpha will come from the surface
  *       but red, green and blue will be treated as 1.0. If
- *       source_surface is NULL, all components will be treated
- *       as 1.0. Note that destination_surface and
+ *       source_surface is VDP_INVALID_HANDLE, all components will
+ *       be treated as 1.0. Note that destination_surface and
  *       source_surface must have been allocated via the same
  *       \ref VdpDevice "VdpDevice".
  * \param[in] source_rect The sub-rectangle of the source
@@ -2399,52 +2434,74 @@ typedef VdpStatus VdpOutputSurfaceRenderBitmapSurface(
 typedef uint32_t VdpDecoderProfile;
 
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_MPEG1                       (VdpDecoderProfile)0
+#define VDP_DECODER_PROFILE_MPEG1                       ((VdpDecoderProfile)0)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_MPEG2_SIMPLE                (VdpDecoderProfile)1
+#define VDP_DECODER_PROFILE_MPEG2_SIMPLE                ((VdpDecoderProfile)1)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_MPEG2_MAIN                  (VdpDecoderProfile)2
+#define VDP_DECODER_PROFILE_MPEG2_MAIN                  ((VdpDecoderProfile)2)
 /** \hideinitializer */
 /** \brief MPEG 4 part 10 == H.264 == AVC */
-#define VDP_DECODER_PROFILE_H264_BASELINE               (VdpDecoderProfile)6
+#define VDP_DECODER_PROFILE_H264_BASELINE               ((VdpDecoderProfile)6)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_H264_MAIN                   (VdpDecoderProfile)7
+#define VDP_DECODER_PROFILE_H264_MAIN                   ((VdpDecoderProfile)7)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_H264_HIGH                   (VdpDecoderProfile)8
+#define VDP_DECODER_PROFILE_H264_HIGH                   ((VdpDecoderProfile)8)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_VC1_SIMPLE                  (VdpDecoderProfile)9
+#define VDP_DECODER_PROFILE_VC1_SIMPLE                  ((VdpDecoderProfile)9)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_VC1_MAIN                    (VdpDecoderProfile)10
+#define VDP_DECODER_PROFILE_VC1_MAIN                    ((VdpDecoderProfile)10)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_VC1_ADVANCED                (VdpDecoderProfile)11
+#define VDP_DECODER_PROFILE_VC1_ADVANCED                ((VdpDecoderProfile)11)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_MPEG4_PART2_SP              (VdpDecoderProfile)12
+#define VDP_DECODER_PROFILE_MPEG4_PART2_SP              ((VdpDecoderProfile)12)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_MPEG4_PART2_ASP             (VdpDecoderProfile)13
+#define VDP_DECODER_PROFILE_MPEG4_PART2_ASP             ((VdpDecoderProfile)13)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX4_QMOBILE               (VdpDecoderProfile)14
+#define VDP_DECODER_PROFILE_DIVX4_QMOBILE               ((VdpDecoderProfile)14)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX4_MOBILE                (VdpDecoderProfile)15
+#define VDP_DECODER_PROFILE_DIVX4_MOBILE                ((VdpDecoderProfile)15)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX4_HOME_THEATER          (VdpDecoderProfile)16
+#define VDP_DECODER_PROFILE_DIVX4_HOME_THEATER          ((VdpDecoderProfile)16)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX4_HD_1080P              (VdpDecoderProfile)17
+#define VDP_DECODER_PROFILE_DIVX4_HD_1080P              ((VdpDecoderProfile)17)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX5_QMOBILE               (VdpDecoderProfile)18
+#define VDP_DECODER_PROFILE_DIVX5_QMOBILE               ((VdpDecoderProfile)18)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX5_MOBILE                (VdpDecoderProfile)19
+#define VDP_DECODER_PROFILE_DIVX5_MOBILE                ((VdpDecoderProfile)19)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX5_HOME_THEATER          (VdpDecoderProfile)20
+#define VDP_DECODER_PROFILE_DIVX5_HOME_THEATER          ((VdpDecoderProfile)20)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX5_HD_1080P              (VdpDecoderProfile)21
+#define VDP_DECODER_PROFILE_DIVX5_HD_1080P              ((VdpDecoderProfile)21)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX3_QMOBILE               (VdpDecoderProfile)22
+#define VDP_DECODER_PROFILE_H264_CONSTRAINED_BASELINE   ((VdpDecoderProfile)22)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX3_MOBILE                (VdpDecoderProfile)23
+#define VDP_DECODER_PROFILE_H264_EXTENDED               ((VdpDecoderProfile)23)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX3_HOME_THEATER          (VdpDecoderProfile)24
+#define VDP_DECODER_PROFILE_H264_PROGRESSIVE_HIGH       ((VdpDecoderProfile)24)
 /** \hideinitializer */
-#define VDP_DECODER_PROFILE_DIVX3_HD_1080P              (VdpDecoderProfile)25
+#define VDP_DECODER_PROFILE_H264_CONSTRAINED_HIGH       ((VdpDecoderProfile)25)
+/** \hideinitializer */
+/** \brief Support for 8 bit depth only */
+#define VDP_DECODER_PROFILE_H264_HIGH_444_PREDICTIVE    ((VdpDecoderProfile)26)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_QMOBILE               ((VdpDecoderProfile)27)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_MOBILE                ((VdpDecoderProfile)28)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_HOME_THEATER          ((VdpDecoderProfile)29)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_DIVX3_HD_1080P              ((VdpDecoderProfile)30)
+/** \hideinitializer */
+/** \brief MPEG-H Part 2 == H.265 == HEVC */
+#define VDP_DECODER_PROFILE_HEVC_MAIN                   ((VdpDecoderProfile)100)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_HEVC_MAIN_10                ((VdpDecoderProfile)101)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_HEVC_MAIN_STILL             ((VdpDecoderProfile)102)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_HEVC_MAIN_12                ((VdpDecoderProfile)103)
+/** \hideinitializer */
+#define VDP_DECODER_PROFILE_HEVC_MAIN_444               ((VdpDecoderProfile)104)
 
 /** \hideinitializer */
 #define VDP_DECODER_LEVEL_MPEG1_NA 0
@@ -2538,6 +2595,38 @@ typedef uint32_t VdpDecoderProfile;
 
 /** \hideinitializer */
 #define VDP_DECODER_LEVEL_DIVX_NA 0
+
+/**
+ * The VDPAU H.265/HEVC decoder levels correspond to the values of
+ * general_level_idc as described in the H.265 Specification, Annex A,
+ * Table A.1. The enumeration values are equal to thirty times the level
+ * number.
+ */
+#define VDP_DECODER_LEVEL_HEVC_1         30
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_2         60
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_2_1       63
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_3         90
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_3_1       93
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_4        120
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_4_1      123
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_5        150
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_5_1      153
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_5_2      156
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_6        180
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_6_1      183
+/** \hideinitializer */
+#define VDP_DECODER_LEVEL_HEVC_6_2      186
 
 /**
  * \brief Query the implementation's VdpDecoder capabilities.
@@ -2646,7 +2735,7 @@ typedef struct {
 } VdpBitstreamBuffer;
 
 /**
- * \brief A generic "picture information" pointer type.
+ * \brief A generic "picture information" type.
  *
  * This type serves solely to document the expected usage of a
  * generic (void *) function parameter. In actual usage, the
@@ -2655,15 +2744,15 @@ typedef struct {
  * picking the type appropriate for the decoder object in
  * question.
  */
-typedef void * VdpPictureInfo;
+typedef void VdpPictureInfo;
 
 /**
  * \brief Picture parameter information for an MPEG 1 or MPEG 2
  *        picture.
  *
- * Note: References to "copy of bitstream field" in the field descriptions
- * may refer to data literally parsed from the bitstream, or derived from
- * the bitstream using a mechanism described in the specification.
+ * Note: References to bitstream fields below may refer to data literally parsed
+ * from the bitstream, or derived from the bitstream using a mechanism described
+ * in the specification.
  */
 typedef struct {
     /**
@@ -2679,45 +2768,38 @@ typedef struct {
     /** Number of slices in the bitstream provided. */
     uint32_t        slice_count;
 
-    /** Copy of the MPEG bitstream field. */
+    /** \name MPEG bitstream
+     *
+     * Copies of the MPEG bitstream fields.
+     * @{ */
     uint8_t picture_structure;
-    /** Copy of the MPEG bitstream field. */
     uint8_t picture_coding_type;
-    /** Copy of the MPEG bitstream field. */
     uint8_t intra_dc_precision;
-    /** Copy of the MPEG bitstream field. */
     uint8_t frame_pred_frame_dct;
-    /** Copy of the MPEG bitstream field. */
     uint8_t concealment_motion_vectors;
-    /** Copy of the MPEG bitstream field. */
     uint8_t intra_vlc_format;
-    /** Copy of the MPEG bitstream field. */
     uint8_t alternate_scan;
-    /** Copy of the MPEG bitstream field. */
     uint8_t q_scale_type;
-    /** Copy of the MPEG bitstream field. */
     uint8_t top_field_first;
-    /** Copy of the MPEG-1 bitstream field. For MPEG-2, set to 0. */
+    /** MPEG-1 only. For MPEG-2, set to 0. */
     uint8_t full_pel_forward_vector;
-    /** Copy of the MPEG-1 bitstream field. For MPEG-2, set to 0. */
+    /** MPEG-1 only. For MPEG-2, set to 0. */
     uint8_t full_pel_backward_vector;
-    /**
-     * Copy of the MPEG bitstream field.
-     * For MPEG-1, fill both horizontal and vertical entries.
-     */
+    /** For MPEG-1, fill both horizontal and vertical entries. */
     uint8_t f_code[2][2];
-    /** Copy of the MPEG bitstream field, converted to raster order. */
+    /** Convert to raster order. */
     uint8_t intra_quantizer_matrix[64];
-    /** Copy of the MPEG bitstream field, converted to raster order. */
+    /** Convert to raster order. */
     uint8_t non_intra_quantizer_matrix[64];
+    /** @} */
 } VdpPictureInfoMPEG1Or2;
 
 /**
  * \brief Information about an H.264 reference frame
  *
- * Note: References to "copy of bitstream field" in the field descriptions
- * may refer to data literally parsed from the bitstream, or derived from
- * the bitstream using a mechanism described in the specification.
+ * Note: References to bitstream fields below may refer to data literally parsed
+ * from the bitstream, or derived from the bitstream using a mechanism described
+ * in the specification.
  */
 typedef struct {
     /**
@@ -2761,9 +2843,13 @@ typedef struct {
  * VdpDecoderRender may be used as reference frames. In particular,
  * surfaces filled using any "put bits" API will not work.
  *
- * Note: References to "copy of bitstream field" in the field descriptions
- * may refer to data literally parsed from the bitstream, or derived from
- * the bitstream using a mechanism described in the specification.
+ * Note: References to bitstream fields below may refer to data literally parsed
+ * from the bitstream, or derived from the bitstream using a mechanism described
+ * in the specification.
+ *
+ * Note: VDPAU clients must use VdpPictureInfoH264Predictive to describe the
+ * attributes of a frame being decoded with
+ * VDP_DECODER_PROFILE_H264_HIGH_444_PREDICTIVE.
  */
 typedef struct {
     /** Number of slices in the bitstream provided. */
@@ -2773,70 +2859,81 @@ typedef struct {
     /** Will the decoded frame be used as a reference later. */
     VdpBool  is_reference;
 
-    /** Copy of the H.264 bitstream field. */
+    /** \name H.264 bitstream
+     *
+     * Copies of the H.264 bitstream fields.
+     * @{ */
     uint16_t frame_num;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  field_pic_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  bottom_field_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  num_ref_frames;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  mb_adaptive_frame_field_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  constrained_intra_pred_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  weighted_pred_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  weighted_bipred_idc;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  frame_mbs_only_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  transform_8x8_mode_flag;
-    /** Copy of the H.264 bitstream field. */
     int8_t   chroma_qp_index_offset;
-    /** Copy of the H.264 bitstream field. */
     int8_t   second_chroma_qp_index_offset;
-    /** Copy of the H.264 bitstream field. */
     int8_t   pic_init_qp_minus26;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  num_ref_idx_l0_active_minus1;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  num_ref_idx_l1_active_minus1;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  log2_max_frame_num_minus4;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  pic_order_cnt_type;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  log2_max_pic_order_cnt_lsb_minus4;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  delta_pic_order_always_zero_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  direct_8x8_inference_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  entropy_coding_mode_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  pic_order_present_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  deblocking_filter_control_present_flag;
-    /** Copy of the H.264 bitstream field. */
     uint8_t  redundant_pic_cnt_present_flag;
-
-    /** Copy of the H.264 bitstream field, converted to raster order. */
+    /** Convert to raster order. */
     uint8_t scaling_lists_4x4[6][16];
-    /** Copy of the H.264 bitstream field, converted to raster order. */
+    /** Convert to raster order. */
     uint8_t scaling_lists_8x8[2][64];
+    /** @} */
 
     /** See \ref VdpPictureInfoH264 for instructions regarding this field. */
     VdpReferenceFrameH264 referenceFrames[16];
 } VdpPictureInfoH264;
 
 /**
+ * \brief Picture parameter information for an H.264 Hi444PP picture.
+ *
+ * Note: VDPAU clients must use VdpPictureInfoH264Predictive to describe the
+ * attributes of a frame being decoded with
+ * VDP_DECODER_PROFILE_H264_HIGH_444_PREDICTIVE.
+ *
+ * Note: software drivers may choose to honor values of
+ * qpprime_y_zero_transform_bypass_flag greater than 1 for internal use.
+ */
+typedef struct {
+    /** \ref VdpPictureInfoH264 struct. */
+    VdpPictureInfoH264 pictureInfo;
+
+    /** \name H.264 bitstream
+     *
+     * Copies of the H.264 bitstream fields.
+     * @{ */
+    /**
+     *  0 - lossless disabled
+     *  1 - lossless enabled
+     */
+    uint8_t qpprime_y_zero_transform_bypass_flag;
+    /**
+     *  0 - disabled
+     *  1 - enabled
+     */
+    uint8_t separate_colour_plane_flag;
+    /** @} */
+} VdpPictureInfoH264Predictive;
+
+/**
  * \brief Picture parameter information for a VC1 picture.
  *
- * Note: References to "copy of bitstream field" in the field descriptions
- * may refer to data literally parsed from the bitstream, or derived from
- * the bitstream using a mechanism described in the specification.
+ * Note: References to bitstream fields below may refer to data literally parsed
+ * from the bitstream, or derived from the bitstream using a mechanism described
+ * in the specification.
  */
 typedef struct {
     /**
@@ -2857,54 +2954,56 @@ typedef struct {
     /** Progressive=0, Frame-interlace=2, Field-interlace=3; see VC-1 7.1.1.15. */
     uint8_t  frame_coding_mode;
 
-    /** Copy of the VC-1 bitstream field. See VC-1 6.1.5. */
+    /** \name VC-1 bitstream
+     *
+     * Copies of the VC-1 bitstream fields.
+     * @{ */
+    /** See VC-1 6.1.5. */
     uint8_t postprocflag;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.1.8. */
+    /** See VC-1 6.1.8. */
     uint8_t pulldown;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.1.9. */
+    /** See VC-1 6.1.9. */
     uint8_t interlace;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.1.10. */
+    /** See VC-1 6.1.10. */
     uint8_t tfcntrflag;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.1.11. */
+    /** See VC-1 6.1.11. */
     uint8_t finterpflag;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.1.3. */
+    /** See VC-1 6.1.3. */
     uint8_t psf;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.8. */
+    /** See VC-1 6.2.8. */
     uint8_t dquant;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.3. */
+    /** See VC-1 6.2.3. */
     uint8_t panscan_flag;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.4. */
+    /** See VC-1 6.2.4. */
     uint8_t refdist_flag;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.11. */
+    /** See VC-1 6.2.11. */
     uint8_t quantizer;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.7. */
+    /** See VC-1 6.2.7. */
     uint8_t extended_mv;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.14. */
+    /** See VC-1 6.2.14. */
     uint8_t extended_dmv;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.10. */
+    /** See VC-1 6.2.10. */
     uint8_t overlap;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.9. */
+    /** See VC-1 6.2.9. */
     uint8_t vstransform;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.5. */
+    /** See VC-1 6.2.5. */
     uint8_t loopfilter;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.6. */
+    /** See VC-1 6.2.6. */
     uint8_t fastuvmc;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.12.15. */
+    /** See VC-1 6.12.15. */
     uint8_t range_mapy_flag;
-    /** Copy of the VC-1 bitstream field. */
     uint8_t range_mapy;
-    /** Copy of the VC-1 bitstream field. See VC-1 6.2.16. */
+    /** See VC-1 6.2.16. */
     uint8_t range_mapuv_flag;
-    /** Copy of the VC-1 bitstream field. */
     uint8_t range_mapuv;
 
     /**
-     * Copy of the VC-1 bitstream field. See VC-1 J.1.10.
+     * See VC-1 J.1.10.
      * Only used by simple and main profiles.
      */
     uint8_t multires;
     /**
-     * Copy of the VC-1 bitstream field. See VC-1 J.1.16.
+     * See VC-1 J.1.16.
      * Only used by simple and main profiles.
      */
     uint8_t syncmarker;
@@ -2916,10 +3015,11 @@ typedef struct {
      */
     uint8_t rangered;
     /**
-     * Copy of the VC-1 bitstream field. See VC-1 J.1.17.
+     * See VC-1 J.1.17.
      * Only used by simple and main profiles.
      */
     uint8_t maxbframes;
+    /** @} */
 
     /**
      * Out-of-loop deblocking enable.
@@ -2938,9 +3038,9 @@ typedef struct {
 /**
  * \brief Picture parameter information for an MPEG-4 Part 2 picture.
  *
- * Note: References to "copy of bitstream field" in the field descriptions
- * may refer to data literally parsed from the bitstream, or derived from
- * the bitstream using a mechanism described in the specification.
+ * Note: References to bitstream fields below may refer to data literally parsed
+ * from the bitstream, or derived from the bitstream using a mechanism described
+ * in the specification.
  */
 typedef struct {
     /**
@@ -2954,38 +3054,28 @@ typedef struct {
      */
     VdpVideoSurface backward_reference;
 
-    /** Copy of the bitstream field. */
+    /** \name MPEG 4 part 2 bitstream
+     *
+     * Copies of the MPEG 4 part 2 bitstream fields.
+     * @{ */
     int32_t trd[2];
-    /** Copy of the bitstream field. */
     int32_t trb[2];
-    /** Copy of the bitstream field. */
     uint16_t vop_time_increment_resolution;
-    /** Copy of the bitstream field. */
     uint8_t vop_coding_type;
-    /** Copy of the bitstream field. */
     uint8_t vop_fcode_forward;
-    /** Copy of the bitstream field. */
     uint8_t vop_fcode_backward;
-    /** Copy of the bitstream field. */
     uint8_t resync_marker_disable;
-    /** Copy of the bitstream field. */
     uint8_t interlaced;
-    /** Copy of the bitstream field. */
     uint8_t quant_type;
-    /** Copy of the bitstream field. */
     uint8_t quarter_sample;
-    /** Copy of the bitstream field. */
     uint8_t short_video_header;
     /** Derived from vop_rounding_type bitstream field. */
     uint8_t rounding_control;
-    /** Copy of the bitstream field. */
     uint8_t alternate_vertical_scan_flag;
-    /** Copy of the bitstream field. */
     uint8_t top_field_first;
-    /** Copy of the bitstream field. */
     uint8_t intra_quantizer_matrix[64];
-    /** Copy of the bitstream field. */
     uint8_t non_intra_quantizer_matrix[64];
+    /** @} */
 } VdpPictureInfoMPEG4Part2;
 
 /**
@@ -3003,6 +3093,219 @@ typedef VdpPictureInfoMPEG4Part2 VdpPictureInfoDivX4;
  * parameter structure is re-used.
  */
 typedef VdpPictureInfoMPEG4Part2 VdpPictureInfoDivX5;
+
+/**
+ * \brief Picture parameter information for an H.265/HEVC picture.
+ *
+ * References to bitsream fields below may refer to data literally parsed from
+ * the bitstream, or derived from the bitstream using a mechanism described in
+ * Rec. ITU-T H.265 (04/2013), hereafter referred to as "the H.265/HEVC
+ * Specification".
+ *
+ * VDPAU H.265/HEVC implementations implement the portion of the decoding
+ * process described by clauses 8.4, 8.5, 8.6 and 8.7 of the the
+ * H.265/HEVC Specification. VdpPictureInfoHEVC provides enough data
+ * to complete this portion of the decoding process, plus additional
+ * information not defined in the H.265/HEVC Specification that may be
+ * useful to particular implementations.
+ *
+ * Client applications must supply every field in this struct.
+ */
+typedef struct {
+    /** \name HEVC Sequence Parameter Set
+     *
+     * Copies of the HEVC Sequence Parameter Set bitstream fields.
+     * @{ */
+    uint8_t chroma_format_idc;
+    /** Only valid if chroma_format_idc == 3. Ignored otherwise.*/
+    uint8_t separate_colour_plane_flag;
+    uint32_t pic_width_in_luma_samples;
+    uint32_t pic_height_in_luma_samples;
+    uint8_t bit_depth_luma_minus8;
+    uint8_t bit_depth_chroma_minus8;
+    uint8_t log2_max_pic_order_cnt_lsb_minus4;
+    /** Provides the value corresponding to the nuh_temporal_id of the frame
+        to be decoded. */
+    uint8_t sps_max_dec_pic_buffering_minus1;
+    uint8_t log2_min_luma_coding_block_size_minus3;
+    uint8_t log2_diff_max_min_luma_coding_block_size;
+    uint8_t log2_min_transform_block_size_minus2;
+    uint8_t log2_diff_max_min_transform_block_size;
+    uint8_t max_transform_hierarchy_depth_inter;
+    uint8_t max_transform_hierarchy_depth_intra;
+    uint8_t scaling_list_enabled_flag;
+    /** Scaling lists, in diagonal order, to be used for this frame. */
+    /** Scaling List for 4x4 quantization matrix,
+       indexed as ScalingList4x4[matrixId][i]. */
+    uint8_t ScalingList4x4[6][16];
+    /** Scaling List for 8x8 quantization matrix,
+       indexed as ScalingList8x8[matrixId][i]. */
+    uint8_t ScalingList8x8[6][64];
+    /** Scaling List for 16x16 quantization matrix,
+       indexed as ScalingList16x16[matrixId][i]. */
+    uint8_t ScalingList16x16[6][64];
+    /** Scaling List for 32x32 quantization matrix,
+       indexed as ScalingList32x32[matrixId][i]. */
+    uint8_t ScalingList32x32[2][64];
+    /** Scaling List DC Coefficients for 16x16,
+       indexed as ScalingListDCCoeff16x16[matrixId]. */
+    uint8_t ScalingListDCCoeff16x16[6];
+    /** Scaling List DC Coefficients for 32x32,
+       indexed as ScalingListDCCoeff32x32[matrixId]. */
+    uint8_t ScalingListDCCoeff32x32[2];
+    uint8_t amp_enabled_flag;
+    uint8_t sample_adaptive_offset_enabled_flag;
+    uint8_t pcm_enabled_flag;
+    /** Only needs to be set if pcm_enabled_flag is set. Ignored otherwise. */
+    uint8_t pcm_sample_bit_depth_luma_minus1;
+    /** Only needs to be set if pcm_enabled_flag is set. Ignored otherwise. */
+    uint8_t pcm_sample_bit_depth_chroma_minus1;
+    /** Only needs to be set if pcm_enabled_flag is set. Ignored otherwise. */
+    uint8_t log2_min_pcm_luma_coding_block_size_minus3;
+    /** Only needs to be set if pcm_enabled_flag is set. Ignored otherwise. */
+    uint8_t log2_diff_max_min_pcm_luma_coding_block_size;
+    /** Only needs to be set if pcm_enabled_flag is set. Ignored otherwise. */
+    uint8_t pcm_loop_filter_disabled_flag;
+    /** Per spec, when zero, assume short_term_ref_pic_set_sps_flag
+        is also zero. */
+    uint8_t num_short_term_ref_pic_sets;
+    uint8_t long_term_ref_pics_present_flag;
+    /** Only needed if long_term_ref_pics_present_flag is set. Ignored
+        otherwise. */
+    uint8_t num_long_term_ref_pics_sps;
+    uint8_t sps_temporal_mvp_enabled_flag;
+    uint8_t strong_intra_smoothing_enabled_flag;
+    /** @} */
+
+    /** \name HEVC Picture Parameter Set
+     *
+     * Copies of the HEVC Picture Parameter Set bitstream fields.
+     * @{ */
+    uint8_t dependent_slice_segments_enabled_flag;
+    uint8_t output_flag_present_flag;
+    uint8_t num_extra_slice_header_bits;
+    uint8_t sign_data_hiding_enabled_flag;
+    uint8_t cabac_init_present_flag;
+    uint8_t num_ref_idx_l0_default_active_minus1;
+    uint8_t num_ref_idx_l1_default_active_minus1;
+    int8_t init_qp_minus26;
+    uint8_t constrained_intra_pred_flag;
+    uint8_t transform_skip_enabled_flag;
+    uint8_t cu_qp_delta_enabled_flag;
+    /** Only needed if cu_qp_delta_enabled_flag is set. Ignored otherwise. */
+    uint8_t diff_cu_qp_delta_depth;
+    int8_t pps_cb_qp_offset;
+    int8_t pps_cr_qp_offset;
+    uint8_t pps_slice_chroma_qp_offsets_present_flag;
+    uint8_t weighted_pred_flag;
+    uint8_t weighted_bipred_flag;
+    uint8_t transquant_bypass_enabled_flag;
+    uint8_t tiles_enabled_flag;
+    uint8_t entropy_coding_sync_enabled_flag;
+    /** Only valid if tiles_enabled_flag is set. Ignored otherwise. */
+    uint8_t num_tile_columns_minus1;
+    /** Only valid if tiles_enabled_flag is set. Ignored otherwise. */
+    uint8_t num_tile_rows_minus1;
+    /** Only valid if tiles_enabled_flag is set. Ignored otherwise. */
+    uint8_t uniform_spacing_flag;
+    /** Only need to set 0..num_tile_columns_minus1. The struct
+        definition reserves up to the maximum of 20. Invalid values are
+        ignored. */
+    uint16_t column_width_minus1[20];
+    /** Only need to set 0..num_tile_rows_minus1. The struct
+        definition reserves up to the maximum of 22. Invalid values are
+        ignored.*/
+    uint16_t row_height_minus1[22];
+    /** Only needed if tiles_enabled_flag is set. Invalid values are
+        ignored. */
+    uint8_t loop_filter_across_tiles_enabled_flag;
+    uint8_t pps_loop_filter_across_slices_enabled_flag;
+    uint8_t deblocking_filter_control_present_flag;
+    /** Only valid if deblocking_filter_control_present_flag is set. Ignored
+        otherwise. */
+    uint8_t deblocking_filter_override_enabled_flag;
+    /** Only valid if deblocking_filter_control_present_flag is set. Ignored
+        otherwise. */
+    uint8_t pps_deblocking_filter_disabled_flag;
+    /** Only valid if deblocking_filter_control_present_flag is set and
+        pps_deblocking_filter_disabled_flag is not set. Ignored otherwise.*/
+    int8_t pps_beta_offset_div2;
+    /** Only valid if deblocking_filter_control_present_flag is set and
+        pps_deblocking_filter_disabled_flag is not set. Ignored otherwise. */
+    int8_t pps_tc_offset_div2;
+    uint8_t lists_modification_present_flag;
+    uint8_t log2_parallel_merge_level_minus2;
+    uint8_t slice_segment_header_extension_present_flag;
+
+    /** \name HEVC Slice Segment Header
+     *
+     * Copies of the HEVC Slice Segment Header bitstream fields and calculated
+     * values detailed in the specification.
+     * @{ */
+    /** Set to 1 if nal_unit_type is equal to IDR_W_RADL or IDR_N_LP.
+        Set to zero otherwise. */
+    uint8_t IDRPicFlag;
+    /** Set to 1 if nal_unit_type in the range of BLA_W_LP to
+        RSV_IRAP_VCL23, inclusive. Set to zero otherwise.*/
+    uint8_t RAPPicFlag;
+    /** See section 7.4.7.1 of the specification. */
+    uint8_t CurrRpsIdx;
+    /** See section 7.4.7.2 of the specification. */
+    uint32_t NumPocTotalCurr;
+    /** Corresponds to specification field, NumDeltaPocs[RefRpsIdx].
+        Only applicable when short_term_ref_pic_set_sps_flag == 0.
+        Implementations will ignore this value in other cases. See 7.4.8. */
+    uint32_t NumDeltaPocsOfRefRpsIdx;
+    /** Section 7.6.3.1 of the H.265/HEVC Specification defines the syntax of
+        the slice_segment_header. This header contains information that
+        some VDPAU implementations may choose to skip. The VDPAU API
+        requires client applications to track the number of bits used in the
+        slice header for structures associated with short term and long term
+        reference pictures. First, VDPAU requires the number of bits used by
+        the short_term_ref_pic_set array in the slice_segment_header. */
+    uint32_t NumShortTermPictureSliceHeaderBits;
+    /** Second, VDPAU requires the number of bits used for long term reference
+        pictures in the slice_segment_header. This is equal to the number
+        of bits used for the contents of the block beginning with
+        "if(long_term_ref_pics_present_flag)". */
+    uint32_t NumLongTermPictureSliceHeaderBits;
+    /** @} */
+
+    /** Slice Decoding Process - Picture Order Count */
+    /** The value of PicOrderCntVal of the picture in the access unit
+        containing the SEI message. The picture being decoded. */
+    int32_t CurrPicOrderCntVal;
+
+    /** Slice Decoding Process - Reference Picture Sets */
+    /** Array of video reference surfaces.
+        Set any unused positions to VDP_INVALID_HANDLE. */
+    VdpVideoSurface RefPics[16];
+    /** Array of picture order counts. These correspond to positions
+        in the RefPics array. */
+    int32_t PicOrderCntVal[16];
+    /** Array used to specify whether a particular RefPic is
+        a long term reference. A value of "1" indicates a long-term
+        reference. */
+    uint8_t IsLongTerm[16];
+    /** Copy of specification field, see Section 8.3.2 of the
+        H.265/HEVC Specification. */
+    uint8_t NumPocStCurrBefore;
+    /** Copy of specification field, see Section 8.3.2 of the
+        H.265/HEVC Specification. */
+    uint8_t NumPocStCurrAfter;
+    /** Copy of specification field, see Section 8.3.2 of the
+        H.265/HEVC Specification. */
+    uint8_t NumPocLtCurr;
+    /** Reference Picture Set list, one of the short-term RPS. These
+        correspond to positions in the RefPics array. */
+    uint8_t RefPicSetStCurrBefore[8];
+    /** Reference Picture Set list, one of the short-term RPS. These
+        correspond to positions in the RefPics array. */
+    uint8_t RefPicSetStCurrAfter[8];
+    /** Reference Picture Set list, one of the long-term RPS. These
+        correspond to positions in the RefPics array. */
+    uint8_t RefPicSetLtCurr[8];
+} VdpPictureInfoHEVC;
 
 /**
  * \brief Decode a compressed field/frame and render the result
@@ -3237,7 +3540,7 @@ typedef uint32_t VdpVideoMixerFeature;
  * enabled, the back-end implementation chooses the best
  * algorithm to apply.
  */
-#define VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL         (VdpVideoMixerFeature)0
+#define VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL         ((VdpVideoMixerFeature)0)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
@@ -3250,7 +3553,7 @@ typedef uint32_t VdpVideoMixerFeature;
  * enabled, the back-end implementation chooses the best
  * algorithm to apply.
  */
-#define VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL_SPATIAL (VdpVideoMixerFeature)1
+#define VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL_SPATIAL ((VdpVideoMixerFeature)1)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
@@ -3259,7 +3562,7 @@ typedef uint32_t VdpVideoMixerFeature;
  * on interlaced content and the video mixer will try to extract
  * progressive frames from pull-down material.
  */
-#define VDP_VIDEO_MIXER_FEATURE_INVERSE_TELECINE             (VdpVideoMixerFeature)2
+#define VDP_VIDEO_MIXER_FEATURE_INVERSE_TELECINE             ((VdpVideoMixerFeature)2)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
@@ -3267,7 +3570,7 @@ typedef uint32_t VdpVideoMixerFeature;
  * When requested and enabled, a noise reduction algorithm will
  * be applied to the video.
  */
-#define VDP_VIDEO_MIXER_FEATURE_NOISE_REDUCTION              (VdpVideoMixerFeature)3
+#define VDP_VIDEO_MIXER_FEATURE_NOISE_REDUCTION              ((VdpVideoMixerFeature)3)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
@@ -3275,7 +3578,7 @@ typedef uint32_t VdpVideoMixerFeature;
  * When requested and enabled, a sharpening algorithm will be
  * applied to the video.
  */
-#define VDP_VIDEO_MIXER_FEATURE_SHARPNESS                    (VdpVideoMixerFeature)4
+#define VDP_VIDEO_MIXER_FEATURE_SHARPNESS                    ((VdpVideoMixerFeature)4)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
@@ -3288,7 +3591,7 @@ typedef uint32_t VdpVideoMixerFeature;
  * to \ref VDP_VIDEO_MIXER_ATTRIBUTE_LUMA_KEY_MAX_LUMA. This
  * keying is performed after scaling and de-interlacing.
  */
-#define VDP_VIDEO_MIXER_FEATURE_LUMA_KEY                     (VdpVideoMixerFeature)5
+#define VDP_VIDEO_MIXER_FEATURE_LUMA_KEY                     ((VdpVideoMixerFeature)5)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
@@ -3310,63 +3613,63 @@ typedef uint32_t VdpVideoMixerFeature;
  * If an application requests and enables multiple high quality scaling
  * algorithms, the highest level enabled scaling algorithm will be used.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1      (VdpVideoMixerFeature)11
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1      ((VdpVideoMixerFeature)11)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L2      (VdpVideoMixerFeature)12
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L2      ((VdpVideoMixerFeature)12)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L3      (VdpVideoMixerFeature)13
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L3      ((VdpVideoMixerFeature)13)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L4      (VdpVideoMixerFeature)14
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L4      ((VdpVideoMixerFeature)14)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L5      (VdpVideoMixerFeature)15
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L5      ((VdpVideoMixerFeature)15)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L6      (VdpVideoMixerFeature)16
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L6      ((VdpVideoMixerFeature)16)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L7      (VdpVideoMixerFeature)17
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L7      ((VdpVideoMixerFeature)17)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L8      (VdpVideoMixerFeature)18
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L8      ((VdpVideoMixerFeature)18)
 /**
  * \hideinitializer
  * \brief A VdpVideoMixerFeature.
  *
  * See \ref VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L1 for details.
  */
-#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L9      (VdpVideoMixerFeature)19
+#define VDP_VIDEO_MIXER_FEATURE_HIGH_QUALITY_SCALING_L9      ((VdpVideoMixerFeature)19)
 
 /**
  * \brief A VdpVideoMixer creation parameter.
@@ -3394,7 +3697,7 @@ typedef uint32_t VdpVideoMixerParameter;
  * The application may query this parameter's supported
  * range.
  */
-#define VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH  (VdpVideoMixerParameter)0
+#define VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH  ((VdpVideoMixerParameter)0)
 /**
  * \hideinitializer
  * \brief The exact height of input video surfaces.
@@ -3407,7 +3710,7 @@ typedef uint32_t VdpVideoMixerParameter;
  * The application may query this parameter's supported
  * range.
  */
-#define VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT (VdpVideoMixerParameter)1
+#define VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT ((VdpVideoMixerParameter)1)
 /**
  * \hideinitializer
  * \brief The chroma type of the input video surfaces the will
@@ -3421,7 +3724,7 @@ typedef uint32_t VdpVideoMixerParameter;
  * The application may not query this application's supported
  * range, since it is a potentially disjoint enumeration.
  */
-#define VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE          (VdpVideoMixerParameter)2
+#define VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE          ((VdpVideoMixerParameter)2)
 /**
  * \hideinitializer
  * \brief The number of auxiliary layers in the mixer's
@@ -3440,7 +3743,7 @@ typedef uint32_t VdpVideoMixerParameter;
  * The application may query this parameter's supported
  * range.
  */
-#define VDP_VIDEO_MIXER_PARAMETER_LAYERS               (VdpVideoMixerParameter)3
+#define VDP_VIDEO_MIXER_PARAMETER_LAYERS               ((VdpVideoMixerParameter)3)
 
 /**
  * \brief An adjustable attribute of VdpVideoMixer operation.
@@ -3469,7 +3772,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may not query this parameter's supported
  * range, since the type is not scalar.
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_BACKGROUND_COLOR      (VdpVideoMixerAttribute)0
+#define VDP_VIDEO_MIXER_ATTRIBUTE_BACKGROUND_COLOR      ((VdpVideoMixerAttribute)0)
 /**
  * \hideinitializer
  * \brief The color-space conversion matrix used by the
@@ -3497,7 +3800,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may not query this parameter's supported
  * range, since the type is not scalar.
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_CSC_MATRIX            (VdpVideoMixerAttribute)1
+#define VDP_VIDEO_MIXER_ATTRIBUTE_CSC_MATRIX            ((VdpVideoMixerAttribute)1)
 /**
  * \hideinitializer
  * \brief The amount of noise reduction algorithm to apply.
@@ -3510,7 +3813,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may query this parameter's supported range.
  * However, the range is fixed as 0.0...1.0.
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_NOISE_REDUCTION_LEVEL (VdpVideoMixerAttribute)2
+#define VDP_VIDEO_MIXER_ATTRIBUTE_NOISE_REDUCTION_LEVEL ((VdpVideoMixerAttribute)2)
 /**
  * \hideinitializer
  * \brief The amount of sharpening, or blurring, to apply.
@@ -3526,7 +3829,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may query this parameter's supported range.
  * However, the range is fixed as -1.0...1.0.
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_SHARPNESS_LEVEL       (VdpVideoMixerAttribute)3
+#define VDP_VIDEO_MIXER_ATTRIBUTE_SHARPNESS_LEVEL       ((VdpVideoMixerAttribute)3)
 /**
  * \hideinitializer
  * \brief The minimum luma value for the luma key algorithm.
@@ -3538,7 +3841,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may query this parameter's supported range.
  * However, the range is fixed as 0.0...1.0.
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_LUMA_KEY_MIN_LUMA     (VdpVideoMixerAttribute)4
+#define VDP_VIDEO_MIXER_ATTRIBUTE_LUMA_KEY_MIN_LUMA     ((VdpVideoMixerAttribute)4)
 /**
  * \hideinitializer
  * \brief The maximum luma value for the luma key algorithm.
@@ -3550,7 +3853,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may query this parameter's supported range.
  * However, the range is fixed as 0.0...1.0.
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_LUMA_KEY_MAX_LUMA     (VdpVideoMixerAttribute)5
+#define VDP_VIDEO_MIXER_ATTRIBUTE_LUMA_KEY_MAX_LUMA     ((VdpVideoMixerAttribute)5)
 /**
  * \hideinitializer
  * \brief Whether de-interlacers should operate solely on luma, and bob chroma.
@@ -3565,7 +3868,7 @@ typedef uint32_t VdpVideoMixerAttribute;
  * The application may query this parameter's supported range.
  * However, the range is fixed as 0 (no/off) ... 1 (yes/on).
  */
-#define VDP_VIDEO_MIXER_ATTRIBUTE_SKIP_CHROMA_DEINTERLACE (VdpVideoMixerAttribute)6
+#define VDP_VIDEO_MIXER_ATTRIBUTE_SKIP_CHROMA_DEINTERLACE ((VdpVideoMixerAttribute)6)
 
 /**
  * \brief Query the implementation's support for a specific
@@ -4164,7 +4467,7 @@ typedef VdpStatus VdpPresentationQueueBlockUntilSurfaceIdle(
  * \brief The status of a surface within a presentation queue.
  */
 typedef enum {
-    /** The surface is no queued or currently visible. */
+    /** The surface is not queued or currently visible. */
     VDP_PRESENTATION_QUEUE_STATUS_IDLE,
     /** The surface is in the queue, and not currently visible. */
     VDP_PRESENTATION_QUEUE_STATUS_QUEUED,
@@ -4286,130 +4589,130 @@ typedef VdpStatus VdpPreemptionCallbackRegister(
 typedef uint32_t VdpFuncId;
 
 /** \hideinitializer */
-#define VDP_FUNC_ID_GET_ERROR_STRING                                            (VdpFuncId)0
+#define VDP_FUNC_ID_GET_ERROR_STRING                                            ((VdpFuncId)0)
 /** \hideinitializer */
-#define VDP_FUNC_ID_GET_PROC_ADDRESS                                            (VdpFuncId)1
+#define VDP_FUNC_ID_GET_PROC_ADDRESS                                            ((VdpFuncId)1)
 /** \hideinitializer */
-#define VDP_FUNC_ID_GET_API_VERSION                                             (VdpFuncId)2
+#define VDP_FUNC_ID_GET_API_VERSION                                             ((VdpFuncId)2)
 /** \hideinitializer */
-#define VDP_FUNC_ID_GET_INFORMATION_STRING                                      (VdpFuncId)4
+#define VDP_FUNC_ID_GET_INFORMATION_STRING                                      ((VdpFuncId)4)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DEVICE_DESTROY                                              (VdpFuncId)5
+#define VDP_FUNC_ID_DEVICE_DESTROY                                              ((VdpFuncId)5)
 /** \hideinitializer */
-#define VDP_FUNC_ID_GENERATE_CSC_MATRIX                                         (VdpFuncId)6
+#define VDP_FUNC_ID_GENERATE_CSC_MATRIX                                         ((VdpFuncId)6)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_QUERY_CAPABILITIES                            (VdpFuncId)7
+#define VDP_FUNC_ID_VIDEO_SURFACE_QUERY_CAPABILITIES                            ((VdpFuncId)7)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_QUERY_GET_PUT_BITS_Y_CB_CR_CAPABILITIES       (VdpFuncId)8
+#define VDP_FUNC_ID_VIDEO_SURFACE_QUERY_GET_PUT_BITS_Y_CB_CR_CAPABILITIES       ((VdpFuncId)8)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_CREATE                                        (VdpFuncId)9
+#define VDP_FUNC_ID_VIDEO_SURFACE_CREATE                                        ((VdpFuncId)9)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_DESTROY                                       (VdpFuncId)10
+#define VDP_FUNC_ID_VIDEO_SURFACE_DESTROY                                       ((VdpFuncId)10)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_GET_PARAMETERS                                (VdpFuncId)11
+#define VDP_FUNC_ID_VIDEO_SURFACE_GET_PARAMETERS                                ((VdpFuncId)11)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_GET_BITS_Y_CB_CR                              (VdpFuncId)12
+#define VDP_FUNC_ID_VIDEO_SURFACE_GET_BITS_Y_CB_CR                              ((VdpFuncId)12)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_SURFACE_PUT_BITS_Y_CB_CR                              (VdpFuncId)13
+#define VDP_FUNC_ID_VIDEO_SURFACE_PUT_BITS_Y_CB_CR                              ((VdpFuncId)13)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_CAPABILITIES                           (VdpFuncId)14
+#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_CAPABILITIES                           ((VdpFuncId)14)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_GET_PUT_BITS_NATIVE_CAPABILITIES       (VdpFuncId)15
+#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_GET_PUT_BITS_NATIVE_CAPABILITIES       ((VdpFuncId)15)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_PUT_BITS_INDEXED_CAPABILITIES          (VdpFuncId)16
+#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_PUT_BITS_INDEXED_CAPABILITIES          ((VdpFuncId)16)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_PUT_BITS_Y_CB_CR_CAPABILITIES          (VdpFuncId)17
+#define VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_PUT_BITS_Y_CB_CR_CAPABILITIES          ((VdpFuncId)17)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_CREATE                                       (VdpFuncId)18
+#define VDP_FUNC_ID_OUTPUT_SURFACE_CREATE                                       ((VdpFuncId)18)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_DESTROY                                      (VdpFuncId)19
+#define VDP_FUNC_ID_OUTPUT_SURFACE_DESTROY                                      ((VdpFuncId)19)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_GET_PARAMETERS                               (VdpFuncId)20
+#define VDP_FUNC_ID_OUTPUT_SURFACE_GET_PARAMETERS                               ((VdpFuncId)20)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_GET_BITS_NATIVE                              (VdpFuncId)21
+#define VDP_FUNC_ID_OUTPUT_SURFACE_GET_BITS_NATIVE                              ((VdpFuncId)21)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_PUT_BITS_NATIVE                              (VdpFuncId)22
+#define VDP_FUNC_ID_OUTPUT_SURFACE_PUT_BITS_NATIVE                              ((VdpFuncId)22)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_PUT_BITS_INDEXED                             (VdpFuncId)23
+#define VDP_FUNC_ID_OUTPUT_SURFACE_PUT_BITS_INDEXED                             ((VdpFuncId)23)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_PUT_BITS_Y_CB_CR                             (VdpFuncId)24
+#define VDP_FUNC_ID_OUTPUT_SURFACE_PUT_BITS_Y_CB_CR                             ((VdpFuncId)24)
 /** \hideinitializer */
-#define VDP_FUNC_ID_BITMAP_SURFACE_QUERY_CAPABILITIES                           (VdpFuncId)25
+#define VDP_FUNC_ID_BITMAP_SURFACE_QUERY_CAPABILITIES                           ((VdpFuncId)25)
 /** \hideinitializer */
-#define VDP_FUNC_ID_BITMAP_SURFACE_CREATE                                       (VdpFuncId)26
+#define VDP_FUNC_ID_BITMAP_SURFACE_CREATE                                       ((VdpFuncId)26)
 /** \hideinitializer */
-#define VDP_FUNC_ID_BITMAP_SURFACE_DESTROY                                      (VdpFuncId)27
+#define VDP_FUNC_ID_BITMAP_SURFACE_DESTROY                                      ((VdpFuncId)27)
 /** \hideinitializer */
-#define VDP_FUNC_ID_BITMAP_SURFACE_GET_PARAMETERS                               (VdpFuncId)28
+#define VDP_FUNC_ID_BITMAP_SURFACE_GET_PARAMETERS                               ((VdpFuncId)28)
 /** \hideinitializer */
-#define VDP_FUNC_ID_BITMAP_SURFACE_PUT_BITS_NATIVE                              (VdpFuncId)29
+#define VDP_FUNC_ID_BITMAP_SURFACE_PUT_BITS_NATIVE                              ((VdpFuncId)29)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_RENDER_OUTPUT_SURFACE                        (VdpFuncId)33
+#define VDP_FUNC_ID_OUTPUT_SURFACE_RENDER_OUTPUT_SURFACE                        ((VdpFuncId)33)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_RENDER_BITMAP_SURFACE                        (VdpFuncId)34
+#define VDP_FUNC_ID_OUTPUT_SURFACE_RENDER_BITMAP_SURFACE                        ((VdpFuncId)34)
 /** \hideinitializer */
-#define VDP_FUNC_ID_OUTPUT_SURFACE_RENDER_VIDEO_SURFACE_LUMA                    (VdpFuncId)35
+#define VDP_FUNC_ID_OUTPUT_SURFACE_RENDER_VIDEO_SURFACE_LUMA                    ((VdpFuncId)35)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DECODER_QUERY_CAPABILITIES                                  (VdpFuncId)36
+#define VDP_FUNC_ID_DECODER_QUERY_CAPABILITIES                                  ((VdpFuncId)36)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DECODER_CREATE                                              (VdpFuncId)37
+#define VDP_FUNC_ID_DECODER_CREATE                                              ((VdpFuncId)37)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DECODER_DESTROY                                             (VdpFuncId)38
+#define VDP_FUNC_ID_DECODER_DESTROY                                             ((VdpFuncId)38)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DECODER_GET_PARAMETERS                                      (VdpFuncId)39
+#define VDP_FUNC_ID_DECODER_GET_PARAMETERS                                      ((VdpFuncId)39)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DECODER_RENDER                                              (VdpFuncId)40
+#define VDP_FUNC_ID_DECODER_RENDER                                              ((VdpFuncId)40)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_FEATURE_SUPPORT                           (VdpFuncId)41
+#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_FEATURE_SUPPORT                           ((VdpFuncId)41)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_PARAMETER_SUPPORT                         (VdpFuncId)42
+#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_PARAMETER_SUPPORT                         ((VdpFuncId)42)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_ATTRIBUTE_SUPPORT                         (VdpFuncId)43
+#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_ATTRIBUTE_SUPPORT                         ((VdpFuncId)43)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_PARAMETER_VALUE_RANGE                     (VdpFuncId)44
+#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_PARAMETER_VALUE_RANGE                     ((VdpFuncId)44)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_ATTRIBUTE_VALUE_RANGE                     (VdpFuncId)45
+#define VDP_FUNC_ID_VIDEO_MIXER_QUERY_ATTRIBUTE_VALUE_RANGE                     ((VdpFuncId)45)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_CREATE                                          (VdpFuncId)46
+#define VDP_FUNC_ID_VIDEO_MIXER_CREATE                                          ((VdpFuncId)46)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_SET_FEATURE_ENABLES                             (VdpFuncId)47
+#define VDP_FUNC_ID_VIDEO_MIXER_SET_FEATURE_ENABLES                             ((VdpFuncId)47)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_SET_ATTRIBUTE_VALUES                            (VdpFuncId)48
+#define VDP_FUNC_ID_VIDEO_MIXER_SET_ATTRIBUTE_VALUES                            ((VdpFuncId)48)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_GET_FEATURE_SUPPORT                             (VdpFuncId)49
+#define VDP_FUNC_ID_VIDEO_MIXER_GET_FEATURE_SUPPORT                             ((VdpFuncId)49)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_GET_FEATURE_ENABLES                             (VdpFuncId)50
+#define VDP_FUNC_ID_VIDEO_MIXER_GET_FEATURE_ENABLES                             ((VdpFuncId)50)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_GET_PARAMETER_VALUES                            (VdpFuncId)51
+#define VDP_FUNC_ID_VIDEO_MIXER_GET_PARAMETER_VALUES                            ((VdpFuncId)51)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_GET_ATTRIBUTE_VALUES                            (VdpFuncId)52
+#define VDP_FUNC_ID_VIDEO_MIXER_GET_ATTRIBUTE_VALUES                            ((VdpFuncId)52)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_DESTROY                                         (VdpFuncId)53
+#define VDP_FUNC_ID_VIDEO_MIXER_DESTROY                                         ((VdpFuncId)53)
 /** \hideinitializer */
-#define VDP_FUNC_ID_VIDEO_MIXER_RENDER                                          (VdpFuncId)54
+#define VDP_FUNC_ID_VIDEO_MIXER_RENDER                                          ((VdpFuncId)54)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_TARGET_DESTROY                           (VdpFuncId)55
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_TARGET_DESTROY                           ((VdpFuncId)55)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_CREATE                                   (VdpFuncId)56
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_CREATE                                   ((VdpFuncId)56)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_DESTROY                                  (VdpFuncId)57
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_DESTROY                                  ((VdpFuncId)57)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_SET_BACKGROUND_COLOR                     (VdpFuncId)58
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_SET_BACKGROUND_COLOR                     ((VdpFuncId)58)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_GET_BACKGROUND_COLOR                     (VdpFuncId)59
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_GET_BACKGROUND_COLOR                     ((VdpFuncId)59)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_GET_TIME                                 (VdpFuncId)62
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_GET_TIME                                 ((VdpFuncId)62)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_DISPLAY                                  (VdpFuncId)63
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_DISPLAY                                  ((VdpFuncId)63)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_BLOCK_UNTIL_SURFACE_IDLE                 (VdpFuncId)64
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_BLOCK_UNTIL_SURFACE_IDLE                 ((VdpFuncId)64)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PRESENTATION_QUEUE_QUERY_SURFACE_STATUS                     (VdpFuncId)65
+#define VDP_FUNC_ID_PRESENTATION_QUEUE_QUERY_SURFACE_STATUS                     ((VdpFuncId)65)
 /** \hideinitializer */
-#define VDP_FUNC_ID_PREEMPTION_CALLBACK_REGISTER                                (VdpFuncId)66
+#define VDP_FUNC_ID_PREEMPTION_CALLBACK_REGISTER                                ((VdpFuncId)66)
 /** \hideinitializer */
-#define VDP_FUNC_ID_DECODER_SET_VIDEO_CONTROL_DATA                              (VdpFuncId)67
-#define VDP_FUNC_ID_DECODER_RENDERSTREAM                                        (VdpFuncId)68
+#define VDP_FUNC_ID_DECODER_SET_VIDEO_CONTROL_DATA                              ((VdpFuncId)67)
+#define VDP_FUNC_ID_DECODER_RENDERSTREAM                                        ((VdpFuncId)68)
 
 #define VDP_FUNC_ID_BASE_WINSYS 0x1000
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 NVIDIA, Corporation
+ * Copyright (c) 2008-2015 NVIDIA Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,14 +27,17 @@
 
 #include <dlfcn.h>
 #include <limits.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <vdpau/vdpau_x11.h>
 #if DRI2
 #include "mesa_dri2.h"
 #include <X11/Xlib.h>
 #endif
+#include "util.h"
 
 typedef void SetDllHandle(
     void * driver_dll_handle
@@ -66,7 +69,8 @@ static void _vdp_wrapper_error_breakpoint(char const * file, int line, char cons
 
 #endif
 
-#define DRIVER_LIB_FORMAT "%slibvdpau_%s.so%s"
+#define DRIVER_FALLBACK_LIB_FORMAT "libvdpau_%s.so"
+#define DRIVER_LIB_FORMAT "%s/libvdpau_%s.so.1"
 
 static char * _vdp_get_driver_name_from_dri2(
     Display *             display,
@@ -97,6 +101,8 @@ static char * _vdp_get_driver_name_from_dri2(
 
     XFree(device_name);
     _vdp_DRI2RemoveExtension(display);
+#else
+    (void) display; (void) screen;
 #endif /* DRI2 */
     return driver_name;
 }
@@ -107,11 +113,17 @@ static VdpStatus _vdp_open_driver(
 {
     char const * vdpau_driver;
     char * vdpau_driver_dri2 = NULL;
+    const char * vdpau_driver_path = NULL;
     char         vdpau_driver_lib[PATH_MAX];
     char const * vdpau_trace;
     char const * func_name;
 
-    vdpau_driver = getenv("VDPAU_DRIVER");
+    vdpau_driver = secure_getenv("VDPAU_DRIVER");
+    if (vdpau_driver) {
+        if (strchr(vdpau_driver, '/')) {
+            vdpau_driver = NULL;
+        }
+    }
     if (!vdpau_driver) {
         vdpau_driver = vdpau_driver_dri2 =
             _vdp_get_driver_name_from_dri2(display, screen);
@@ -120,8 +132,11 @@ static VdpStatus _vdp_open_driver(
         vdpau_driver = "nvidia";
     }
 
-    if (snprintf(vdpau_driver_lib, sizeof(vdpau_driver_lib), DRIVER_LIB_FORMAT,
-                 VDPAU_MODULEDIR "/", vdpau_driver, ".1") >=
+    /* Don't allow setuid apps to use VDPAU_DRIVER_PATH */
+    vdpau_driver_path = secure_getenv("VDPAU_DRIVER_PATH");
+    if (vdpau_driver_path &&
+        snprintf(vdpau_driver_lib, sizeof(vdpau_driver_lib),
+                 DRIVER_LIB_FORMAT, vdpau_driver_path, vdpau_driver) <
             sizeof(vdpau_driver_lib)) {
         fprintf(stderr, "Failed to construct driver path: path too long\n");
 #if DRI2
@@ -132,14 +147,33 @@ static VdpStatus _vdp_open_driver(
 #endif
         _VDP_ERROR_BREAKPOINT();
         return VDP_STATUS_NO_IMPLEMENTATION;
+        _vdp_driver_dll = dlopen(vdpau_driver_lib, RTLD_NOW | RTLD_GLOBAL);
     }
 
-    _vdp_driver_dll = dlopen(vdpau_driver_lib, RTLD_NOW | RTLD_GLOBAL);
+    /* Fallback to VDPAU_MODULEDIR when VDPAU_DRIVER_PATH is not set,
+     * or if we fail to create the driver path/dlopen the library. */
+    if (!_vdp_driver_dll) {
+        if (snprintf(vdpau_driver_lib, sizeof(vdpau_driver_lib),
+                     DRIVER_LIB_FORMAT, VDPAU_MODULEDIR, vdpau_driver) >=
+                sizeof(vdpau_driver_lib)) {
+            fprintf(stderr, "Failed to construct driver path: path too long\n");
+            if (vdpau_driver_dri2) {
+                XFree(vdpau_driver_dri2);
+                vdpau_driver_dri2 = NULL;
+            }
+            _VDP_ERROR_BREAKPOINT();
+            return VDP_STATUS_NO_IMPLEMENTATION;
+        }
+        else {
+            _vdp_driver_dll = dlopen(vdpau_driver_lib, RTLD_NOW | RTLD_GLOBAL);
+        }
+    }
+
     if (!_vdp_driver_dll) {
         /* Try again using the old path, which is guaranteed to fit in PATH_MAX
          * if the complete path fit above. */
-        snprintf(vdpau_driver_lib, sizeof(vdpau_driver_lib), DRIVER_LIB_FORMAT,
-                 "", vdpau_driver, "");
+        snprintf(vdpau_driver_lib, sizeof(vdpau_driver_lib),
+                 DRIVER_FALLBACK_LIB_FORMAT, vdpau_driver);
         _vdp_driver_dll = dlopen(vdpau_driver_lib, RTLD_NOW | RTLD_GLOBAL);
     }
 
@@ -158,7 +192,7 @@ static VdpStatus _vdp_open_driver(
 
     _vdp_backend_dll = _vdp_driver_dll;
 
-    vdpau_trace = getenv("VDPAU_TRACE");
+    vdpau_trace = secure_getenv("VDPAU_TRACE");
     if (vdpau_trace && atoi(vdpau_trace)) {
         SetDllHandle * set_dll_handle;
 
@@ -220,7 +254,6 @@ static void _vdp_close_driver(void)
 static VdpGetProcAddress * _imp_get_proc_address;
 static VdpVideoSurfacePutBitsYCbCr * _imp_vid_put_bits_y_cb_cr;
 static VdpPresentationQueueSetBackgroundColor * _imp_pq_set_bg_color;
-static int _inited_fixes;
 static int _running_under_flash;
 static int _enable_flash_uv_swap = 1;
 static int _disable_flash_pq_bg_color = 1;
@@ -262,6 +295,7 @@ static VdpStatus pq_set_bg_color_noop(
     VdpColor * const     background_color
 )
 {
+    (void) presentation_queue; (void) background_color;
     return VDP_STATUS_OK;
 }
 
@@ -366,11 +400,6 @@ static void init_config(void)
 
 static void init_fixes(void)
 {
-    if (_inited_fixes) {
-        return;
-    }
-    _inited_fixes = 1;
-
     init_running_under_flash();
     init_config();
 }
@@ -383,29 +412,51 @@ VdpStatus vdp_device_create_x11(
     VdpGetProcAddress * * get_proc_address
 )
 {
-    VdpStatus status;
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    VdpGetProcAddress *gpa;
+    VdpStatus status = VDP_STATUS_OK;
 
-    init_fixes();
+    pthread_once(&once, init_fixes);
 
+    pthread_mutex_lock(&lock);
     if (!_vdp_imp_device_create_x11_proc) {
         status = _vdp_open_driver(display, screen);
-        if (status != VDP_STATUS_OK) {
+        if (status != VDP_STATUS_OK)
             _vdp_close_driver();
-            return status;
-        }
     }
+    pthread_mutex_unlock(&lock);
 
-    status = _vdp_imp_device_create_x11_proc(
-        display,
-        screen,
-        device,
-        &_imp_get_proc_address
-    );
+    if (status != VDP_STATUS_OK)
+        return status;
+
+    status = _vdp_imp_device_create_x11_proc(display, screen, device, &gpa);
     if (status != VDP_STATUS_OK) {
         return status;
     }
 
     *get_proc_address = vdp_wrapper_get_proc_address;
 
-    return VDP_STATUS_OK;
+    pthread_mutex_lock(&lock);
+    if (_imp_get_proc_address != gpa) {
+        if (_imp_get_proc_address == NULL)
+            _imp_get_proc_address = gpa;
+        else
+        /* Currently the wrapper can only deal with one back-end.
+         * This should never happen, but better safe than sorry. */
+            status = VDP_STATUS_NO_IMPLEMENTATION;
+    }
+    pthread_mutex_unlock(&lock);
+
+    if (status != VDP_STATUS_OK) {
+        void *pv;
+
+        if (gpa(*device, VDP_FUNC_ID_DEVICE_DESTROY, &pv) == VDP_STATUS_OK) {
+            VdpDeviceDestroy *device_destroy = pv;
+
+            device_destroy(*device);
+        }
+    }
+
+    return status;
 }

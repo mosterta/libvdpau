@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 NVIDIA, Corporation
+ * Copyright (c) 2008-2015 NVIDIA Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vdpau/vdpau_x11.h>
+
+#include "../src/util.h"
 
 #define _VDP_TRACE_ARSIZE(_x_) ((sizeof (_x_)) / (sizeof ((_x_)[0])))
 
@@ -483,6 +485,243 @@ static void _vdp_cap_dump_picture_info(
             fputs("}}", _vdp_cap_data.fp);
         }
         break;
+    case VDP_DECODER_PROFILE_HEVC_MAIN:
+    case VDP_DECODER_PROFILE_HEVC_MAIN_10:
+    case VDP_DECODER_PROFILE_HEVC_MAIN_STILL:
+    case VDP_DECODER_PROFILE_HEVC_MAIN_12:
+    case VDP_DECODER_PROFILE_HEVC_MAIN_444:
+        {
+            VdpPictureInfoHEVC const * picture_info_hevc =
+                (VdpPictureInfoHEVC const *)picture_info;
+
+            fprintf(
+                _vdp_cap_data.fp,
+                "{%u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, {",
+                (uint32_t)picture_info_hevc->chroma_format_idc,
+                (uint32_t)picture_info_hevc->separate_colour_plane_flag,
+                (uint32_t)picture_info_hevc->pic_width_in_luma_samples,
+                (uint32_t)picture_info_hevc->pic_height_in_luma_samples,
+                (uint32_t)picture_info_hevc->bit_depth_luma_minus8,
+                (uint32_t)picture_info_hevc->bit_depth_chroma_minus8,
+                (uint32_t)picture_info_hevc->log2_max_pic_order_cnt_lsb_minus4,
+                (uint32_t)picture_info_hevc->sps_max_dec_pic_buffering_minus1,
+                (uint32_t)picture_info_hevc->log2_min_luma_coding_block_size_minus3,
+                (uint32_t)picture_info_hevc->log2_diff_max_min_luma_coding_block_size,
+                (uint32_t)picture_info_hevc->log2_min_transform_block_size_minus2,
+                (uint32_t)picture_info_hevc->log2_diff_max_min_transform_block_size,
+                (uint32_t)picture_info_hevc->max_transform_hierarchy_depth_inter,
+                (uint32_t)picture_info_hevc->max_transform_hierarchy_depth_intra,
+                (uint32_t)picture_info_hevc->scaling_list_enabled_flag
+            );
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList4x4); ++i) {
+                fputs((i == 0) ? "{" : "}, {", _vdp_cap_data.fp);
+                for (uint32_t j = 0; j < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList4x4[0]); ++j) {
+                    fprintf(
+                        _vdp_cap_data.fp,
+                        "%s%u",
+                        (j == 0) ? "" : ", ",
+                        (uint32_t)picture_info_hevc->ScalingList4x4[i][j]
+                    );
+                }
+            }
+            fputs("}}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList8x8); ++i) {
+                fputs((i == 0) ? "{" : "}, {", _vdp_cap_data.fp);
+                for (uint32_t j = 0; j < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList8x8[0]); ++j) {
+                    fprintf(
+                        _vdp_cap_data.fp,
+                        "%s%u",
+                        (j == 0) ? "" : ", ",
+                        (uint32_t)picture_info_hevc->ScalingList8x8[i][j]
+                    );
+                }
+            }
+            fputs("}}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList16x16); ++i) {
+                fputs((i == 0) ? "{" : "}, {", _vdp_cap_data.fp);
+                for (uint32_t j = 0; j < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList16x16[0]); ++j) {
+                    fprintf(
+                        _vdp_cap_data.fp,
+                        "%s%u",
+                        (j == 0) ? "" : ", ",
+                        (uint32_t)picture_info_hevc->ScalingList16x16[i][j]
+                    );
+                }
+            }
+            fputs("}}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList32x32); ++i) {
+                fputs((i == 0) ? "{" : "}, {", _vdp_cap_data.fp);
+                for (uint32_t j = 0; j < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingList32x32[0]); ++j) {
+                    fprintf(
+                        _vdp_cap_data.fp,
+                        "%s%u",
+                        (j == 0) ? "" : ", ",
+                        (uint32_t)picture_info_hevc->ScalingList32x32[i][j]
+                    );
+                }
+            }
+            fputs("}}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingListDCCoeff16x16); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->ScalingListDCCoeff16x16[i]
+                );
+            }
+            fputs("}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->ScalingListDCCoeff32x32); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->ScalingListDCCoeff32x32[i]
+                );
+            }
+            fputs("}, ", _vdp_cap_data.fp);
+            fprintf(
+                _vdp_cap_data.fp,
+                "%u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %d, %u, %u, %u, %u, %d, %d, %u, %u, %u, %u, %u, %u, %u, %u, %u, {",
+                (uint32_t)picture_info_hevc->amp_enabled_flag,
+                (uint32_t)picture_info_hevc->sample_adaptive_offset_enabled_flag,
+                (uint32_t)picture_info_hevc->pcm_enabled_flag,
+                (uint32_t)picture_info_hevc->pcm_sample_bit_depth_luma_minus1,
+                (uint32_t)picture_info_hevc->pcm_sample_bit_depth_chroma_minus1,
+                (uint32_t)picture_info_hevc->log2_min_pcm_luma_coding_block_size_minus3,
+                (uint32_t)picture_info_hevc->log2_diff_max_min_pcm_luma_coding_block_size,
+                (uint32_t)picture_info_hevc->pcm_loop_filter_disabled_flag,
+                (uint32_t)picture_info_hevc->num_short_term_ref_pic_sets,
+                (uint32_t)picture_info_hevc->long_term_ref_pics_present_flag,
+                (uint32_t)picture_info_hevc->num_long_term_ref_pics_sps,
+                (uint32_t)picture_info_hevc->sps_temporal_mvp_enabled_flag,
+                (uint32_t)picture_info_hevc->strong_intra_smoothing_enabled_flag,
+                (uint32_t)picture_info_hevc->dependent_slice_segments_enabled_flag,
+                (uint32_t)picture_info_hevc->output_flag_present_flag,
+                (uint32_t)picture_info_hevc->num_extra_slice_header_bits,
+                (uint32_t)picture_info_hevc->sign_data_hiding_enabled_flag,
+                (uint32_t)picture_info_hevc->cabac_init_present_flag,
+                (uint32_t)picture_info_hevc->num_ref_idx_l0_default_active_minus1,
+                (uint32_t)picture_info_hevc->num_ref_idx_l1_default_active_minus1,
+                (int32_t)picture_info_hevc->init_qp_minus26,
+                (uint32_t)picture_info_hevc->constrained_intra_pred_flag,
+                (uint32_t)picture_info_hevc->transform_skip_enabled_flag,
+                (uint32_t)picture_info_hevc->cu_qp_delta_enabled_flag,
+                (uint32_t)picture_info_hevc->diff_cu_qp_delta_depth,
+                (int32_t)picture_info_hevc->pps_cb_qp_offset,
+                (int32_t)picture_info_hevc->pps_cr_qp_offset,
+                (uint32_t)picture_info_hevc->pps_slice_chroma_qp_offsets_present_flag,
+                (uint32_t)picture_info_hevc->weighted_pred_flag,
+                (uint32_t)picture_info_hevc->weighted_bipred_flag,
+                (uint32_t)picture_info_hevc->transquant_bypass_enabled_flag,
+                (uint32_t)picture_info_hevc->tiles_enabled_flag,
+                (uint32_t)picture_info_hevc->entropy_coding_sync_enabled_flag,
+                (uint32_t)picture_info_hevc->num_tile_columns_minus1,
+                (uint32_t)picture_info_hevc->num_tile_rows_minus1,
+                (uint32_t)picture_info_hevc->uniform_spacing_flag
+            );
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->column_width_minus1); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->column_width_minus1[i]
+                );
+            }
+            fputs("}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->row_height_minus1); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->row_height_minus1[i]
+                );
+            }
+            fputs("}, ", _vdp_cap_data.fp);
+            fprintf(
+                _vdp_cap_data.fp,
+                "%u, %u, %u, %u, %u, %d, %d, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %d, {",
+                (uint32_t)picture_info_hevc->loop_filter_across_tiles_enabled_flag,
+                (uint32_t)picture_info_hevc->pps_loop_filter_across_slices_enabled_flag,
+                (uint32_t)picture_info_hevc->deblocking_filter_control_present_flag,
+                (uint32_t)picture_info_hevc->deblocking_filter_override_enabled_flag,
+                (uint32_t)picture_info_hevc->pps_deblocking_filter_disabled_flag,
+                (int32_t)picture_info_hevc->pps_beta_offset_div2,
+                (int32_t)picture_info_hevc->pps_tc_offset_div2,
+                (uint32_t)picture_info_hevc->lists_modification_present_flag,
+                (uint32_t)picture_info_hevc->log2_parallel_merge_level_minus2,
+                (uint32_t)picture_info_hevc->slice_segment_header_extension_present_flag,
+                (uint32_t)picture_info_hevc->IDRPicFlag,
+                (uint32_t)picture_info_hevc->RAPPicFlag,
+                (uint32_t)picture_info_hevc->CurrRpsIdx,
+                (uint32_t)picture_info_hevc->NumPocTotalCurr,
+                (uint32_t)picture_info_hevc->NumDeltaPocsOfRefRpsIdx,
+                (uint32_t)picture_info_hevc->NumShortTermPictureSliceHeaderBits,
+                (uint32_t)picture_info_hevc->NumLongTermPictureSliceHeaderBits,
+                (int32_t)picture_info_hevc->CurrPicOrderCntVal
+            );
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->RefPics); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->RefPics[i]
+                );
+            }
+            fputs("}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->PicOrderCntVal); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%d",
+                    (i == 0) ? "" : ", ",
+                    (int32_t)picture_info_hevc->PicOrderCntVal[i]
+                );
+            }
+            fputs("}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->IsLongTerm); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->IsLongTerm[i]
+                );
+            }
+            fputs("}, ", _vdp_cap_data.fp);
+            fprintf(
+                _vdp_cap_data.fp,
+                "%u, %u, %u, {",
+                (uint32_t)picture_info_hevc->NumPocStCurrBefore,
+                (uint32_t)picture_info_hevc->NumPocStCurrAfter,
+                (uint32_t)picture_info_hevc->NumPocLtCurr
+            );
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->RefPicSetStCurrBefore); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->RefPicSetStCurrBefore[i]
+                );
+            }
+            fputs("}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->RefPicSetStCurrAfter); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->RefPicSetStCurrAfter[i]
+                );
+            }
+            fputs("}, {", _vdp_cap_data.fp);
+            for (uint32_t i = 0; i < _VDP_TRACE_ARSIZE(picture_info_hevc->RefPicSetLtCurr); ++i) {
+                fprintf(
+                    _vdp_cap_data.fp,
+                    "%s%u",
+                    (i == 0) ? "" : ", ",
+                    (uint32_t)picture_info_hevc->RefPicSetLtCurr[i]
+                );
+            }
+            fputs("}}", _vdp_cap_data.fp);
+        }
+        break;
     default:
         fputs("{...}", _vdp_cap_data.fp);
         break;
@@ -536,7 +775,7 @@ static void _vdp_cap_dump_video_mixer_attribute_value(
             // the value, so it can either fill in the value, or NULL out the
             // pointer.
             if (get_operation) {
-                ptr = *(VdpCSCMatrix const * *)value;
+                ptr = *(VdpCSCMatrix const * const *)value;
             }
             else {
                 ptr = (VdpCSCMatrix const *)value;
@@ -849,7 +1088,7 @@ static bool _vdp_cap_init_planes_adapt_format_bits_indexed(
     );
 }
 
-bool _vdp_cap_init_planes_adapt_surface_video(
+static bool _vdp_cap_init_planes_adapt_surface_video(
     uint32_t   surface,
     uint32_t * surface_format,
     uint32_t * width,
@@ -874,7 +1113,7 @@ bool _vdp_cap_init_planes_adapt_surface_video(
     return true;
 }
 
-bool _vdp_cap_init_planes_adapt_surface_output(
+static bool _vdp_cap_init_planes_adapt_surface_output(
     uint32_t   surface,
     uint32_t * surface_format,
     uint32_t * width,
@@ -899,7 +1138,7 @@ bool _vdp_cap_init_planes_adapt_surface_output(
     return true;
 }
 
-bool _vdp_cap_init_planes_adapt_surface_bitmap(
+static bool _vdp_cap_init_planes_adapt_surface_bitmap(
     uint32_t   surface,
     uint32_t * surface_format,
     uint32_t * width,
@@ -1172,7 +1411,7 @@ static void _vdp_cap_dump_bitstream_buffer_list(
             buffers[0].bitstream_bytes
         );
         if (_vdp_cap_data.level >= LEVEL_DATA) {
-            uint8_t * ptr = (uint8_t * )buffers[0].bitstream;
+            const uint8_t * ptr = (const uint8_t * )buffers[0].bitstream;
             for (uint32_t i = 0; i < buffers[0].bitstream_bytes; ++i) {
                 fprintf(_vdp_cap_data.fp, "%02x ", ptr[i]);
             }
@@ -4558,13 +4797,13 @@ VdpStatus vdp_trace_device_create_x11(
     }
     else {
         _vdp_cap_data.level = 0;
-        char const * vdpau_trace = getenv("VDPAU_TRACE");
+        char const * vdpau_trace = secure_getenv("VDPAU_TRACE");
         if (vdpau_trace) {
             _vdp_cap_data.level = atoi(vdpau_trace);
         }
 
         _vdp_cap_data.fp = 0;
-        char const * vdpau_trace_file = getenv("VDPAU_TRACE_FILE");
+        char const * vdpau_trace_file = secure_getenv("VDPAU_TRACE_FILE");
         if (vdpau_trace_file && strlen(vdpau_trace_file)) {
             if (vdpau_trace_file[0] == '&') {
                 int fd = atoi(&vdpau_trace_file[1]);
