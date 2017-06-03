@@ -19,9 +19,9 @@ AC_PROG_CXX
 AC_PROG_LIBTOOL
 
 # Checks for dependencies.
-PKG_CHECK_MODULES(X11, x11)
-AC_SUBST(X11_CFLAGS)
-AC_SUBST(X11_LIBS)
+#PKG_CHECK_MODULES(X11, x11)
+#AC_SUBST(X11_CFLAGS)
+#AC_SUBST(X11_LIBS)
 
 # Check for optional dependencies.
 AC_ARG_ENABLE(dri2, AS_HELP_STRING([--disable-dri2], [Disable driver name query through DRI2 (default: auto)]), [DRI2=$enableval], [DRI2=auto])
@@ -32,6 +32,9 @@ case "$DRI2,$HAVE_DRI2PROTO" in
         ;;
     yes,yes | auto,yes)
         AC_DEFINE(DRI2, 1, [Request driver name from DRI2])
+	PKG_CHECK_MODULES(X11, x11)
+	AC_SUBST(X11_CFLAGS)
+	AC_SUBST(X11_LIBS)
         DRI2=yes
         PKG_CHECK_MODULES(XEXT, xext)
         AC_SUBST([XEXT_CFLAGS])

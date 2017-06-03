@@ -157,10 +157,12 @@ static VdpStatus _vdp_open_driver(
                      DRIVER_LIB_FORMAT, VDPAU_MODULEDIR, vdpau_driver) >=
                 sizeof(vdpau_driver_lib)) {
             fprintf(stderr, "Failed to construct driver path: path too long\n");
+#if DRI2
             if (vdpau_driver_dri2) {
                 XFree(vdpau_driver_dri2);
                 vdpau_driver_dri2 = NULL;
             }
+#endif
             _VDP_ERROR_BREAKPOINT();
             return VDP_STATUS_NO_IMPLEMENTATION;
         }
