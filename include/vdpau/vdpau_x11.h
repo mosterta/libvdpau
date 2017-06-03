@@ -41,7 +41,12 @@
 #ifndef _VDPAU_X11_H
 #define _VDPAU_X11_H
 
+#if DRI2
 #include <X11/Xlib.h>
+#else
+typedef unsigned long Drawable;
+typedef void* Display;
+#endif 
 #include "vdpau.h"
 
 #ifdef __cplusplus
